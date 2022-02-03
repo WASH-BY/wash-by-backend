@@ -22,7 +22,7 @@
     "mongoose": "^5.13.7",
     "mongoose-fuzzy-searching": "^2.0.2",
     "node-cron": "^3.0.0",
-    "nodemon": "^2.0.12",
+    "nodemon": "^2.0.15",
     "redis": "^4.0.1"
   }
 }
