@@ -18,7 +18,11 @@ app.use("/user", require("./routes/UserRouter"));
 app.use("/recipes", require("./routes/RecipeRouter"));
 app.use("/car", require("./routes/CarModelRouter"));
 app.use("/subscription", require("./routes/CarSubscriptionRouter"));
-app.use("/wash",require("./routes/CarWashRouter"))
+app.use("/wash", require("./routes/CarWashRouter"));
+app.use(
+  "/washersTodaysWashes",
+  require("./routes/CarWashersTodaysWashesRouter")
+);
 app.use(ErrorHandler);
 
 app.listen(PORT, () => console.log(`Server Running on Port Number ${PORT}`));

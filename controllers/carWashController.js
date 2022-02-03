@@ -7,8 +7,7 @@ const carWash = {
   createCarWashManually: async (req, res) => {
     try {
       const subscription = new APIFeatures(
-        CarSubscriptionModel
-          .find()
+        CarSubscriptionModel.find()
           .select("-updatedAt -__v -createdAt")
           .populate(
             "carDetails carOwnerDetails",
@@ -26,7 +25,7 @@ const carWash = {
 
       const result = await Promise.allSettled([
         subscription.query,
-        CarSubscriptionModel.countDocuments(), //count number of subscription
+        subscription.length, //count number of subscription
       ]);
 
       const SubscriptionData =
@@ -34,10 +33,63 @@ const carWash = {
 
       const count = result[1].status === "fulfilled" ? result[1].value : [];
 
-      res.status(200).json({
-        success: true,
-        data: { SubscriptionData: SubscriptionData, count },
-      });
+      const Date = new Date();
+      const todaysDate =
+        Date.getFullYear() + "-" + (Date.getMonth() + 1) + "-" + Date.getDate();
+      console.log("todaysDate", todaysDate);
+      /*once we have the car wash data
+      we filter out the car washes for today
+      */
+      const todayWashes =
+        SubscriptionData &&
+        SubscriptionData._id &&
+        SubscriptionData.filter((data) =>
+          data.washingDates.includes(todaysDate)
+        );
+
+      /* once we have the filtered data for todays's date 
+      we have to assign a washer to each car wash 
+      Hence I call Users model to fetch all the washers available
+      */
+
+      const washers = await Users.find({ isWasher: true });
+
+      const carWashScheduleTimeArray = [
+        "09:00",
+        "09:30",
+        "10:00",
+        "10:30",
+        "11:00",
+        "11:30",
+        "12:00",
+        "12:30",
+        "13:00",
+        "14:00",
+        "14:30",
+        "15:00",
+        "15:30",
+        "16:00",
+        "16:30",
+        "17:00",
+        "17:30",
+        "18:00",
+        "18:30",
+      ];
+      //TODO:as you have the car washes for today and the washer's Data
+      /* create car wash by providing carDetails
+        carWashScheduledDate,
+        carWashStartTime,
+        carWashEndTime,
+        alongside create a copy for the washer 
+        through the API named createMyCarwashesToday
+        so that the user will have the copy of car washes  for today to track by him and the admin
+        make sure you set up time intervals for each car wash
+*/
+
+      // res.status(200).json({
+      //   success: true,
+      //   data: { SubscriptionData: SubscriptionData, count },
+      // });
     } catch (error) {
       return res.status(500).json({ success: false, message: error.message });
     }
