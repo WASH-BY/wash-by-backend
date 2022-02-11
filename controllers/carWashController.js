@@ -2,6 +2,42 @@ const CarWash = require("../models/CarWashDetails");
 const Users = require("../models/UserModel");
 const CarSubscriptionModel = require("../models/CarSubscriptionDetails");
 const APIFeatures = require("../utils/APIFeatures");
+const fs = require("fs");
+// const { cloudinary } = require("../utils/Cloudinary");
+
+const cloudinary = require("cloudinary");
+cloudinary.config({
+  cloud_name: "nutrikee",
+  api_key: "576948847687923",
+  api_secret: "wm33buwerdl3bhz4kHIlzy67aME",
+});
+
+async function uploadToCloudinary(locaFilePath) {
+  // locaFilePath :
+  // path of image which was just uploaded to "uploads" folder
+  var mainFolderName = "main";
+  var filePathOnCloudinary = mainFolderName + "/" + locaFilePath;
+  // filePathOnCloudinary :
+  // path of image we want when it is uploded to cloudinary
+  return cloudinary.uploader
+    .upload(locaFilePath, { public_id: filePathOnCloudinary })
+    .then((result) => {
+      // Image has been successfully uploaded on cloudinary
+      // So we dont need local image file anymore
+      // Remove file from local uploads folder
+      fs.unlinkSync(locaFilePath);
+
+      return {
+        message: "Success",
+        url: result.url,
+      };
+    })
+    .catch((error) => {
+      // Remove file from local uploads folder
+      fs.unlinkSync(locaFilePath);
+      return { message: "Fail" };
+    });
+}
 
 const carWash = {
   createCarWashManually: async (req, res) => {
@@ -150,35 +186,59 @@ const carWash = {
       //Here car wash will be updated by washer
       const getWasherDetails = await Users.find({ _id: req.user.id });
 
-      const { carImageBeforeWash } = req.body;
+      //Single File upload
+      // console.log("req.file.originalname", req.file.originalname);
 
-      if (getWasherDetails[0].isWasher) {
-        const washExists = await CarWash.find({ _id: req.params.id });
-        if (!washExists) {
-          return res.status(500).json({
-            success: false,
-            message: "No Car wash found with the provided id.",
-          });
-        } else {
-          /*here we update the car wash by uploading the car images
-           before wash along with who is washing the car*/
+      console.log(
+        "req.file.originalname",
+        req.files.map((originalname) => originalname)
+      );
+      // var locaFilePath = req.file.path;
+      // // console.log("file", file);
+      // var result = await uploadToCloudinary(locaFilePath)
+      // console.log("data1", result);
 
-          const washerUpdate = await CarWash.findByIdAndUpdate(
-            req.params.id,
-            {
-              carwashedBy: req.user.id,
-              carImageBeforeWash,
-            },
-            { new: true, runValidators: true }
-          );
-          return res.status(200).json({ success: true, data: washerUpdate });
-        }
-      } else {
-        return res.status(500).json({
-          success: false,
-          data: "Data can be updated only by a Washer",
-        });
-      }
+      // console.log('result.secure_url', result.url)
+      // Multiple File upload
+      let filesArray = [];
+      const res = await Promise.allSettled([req.files
+        .forEach(async (element) => {
+          console.log("req.file.originalname", element.originalname);
+
+          var result = await uploadToCloudinary(element.path);
+
+          return filesArray.push(result.url);
+        })])
+
+      console.log("fileArr", res);
+
+      // if (getWasherDetails[0].isWasher) {
+      //   const washExists = await CarWash.find({ _id: req.params.id });
+      //   if (!washExists) {
+      //     return res.status(500).json({
+      //       success: false,
+      //       message: "No Car wash found with the provided id.",
+      //     });
+      //   } else {
+      //     /*here we update the car wash by uploading the car images
+      //      before wash along with who is washing the car*/
+
+      //     const washerUpdate = await CarWash.findByIdAndUpdate(
+      //       req.params.id,
+      //       {
+      //         carwashedBy: req.user.id,
+      //         carImageBeforeWash,
+      //       },
+      //       { new: true, runValidators: true }
+      //     );
+      //     return res.status(200).json({ success: true, data: washerUpdate });
+      //   }
+      // } else {
+      return res.status(500).json({
+        success: false,
+        data: "Data can be updated only by a Washer",
+      });
+      // }
     } catch (error) {
       return res.status(500).json({ error: error.message });
     }
@@ -312,5 +372,18 @@ const carWash = {
     }
   },
 };
+
+const fileSizeFormatter = (bytes, decimal) => {
+  if (bytes === 0) {
+    return "0 Bytes";
+  }
+  const dm = decimal || 2;
+  const sizes = ["Bytes", "KB", "MB", "GB", "TB", "PB", "EB", "YB", "ZB"];
+  const index = Math.floor(Math.log(bytes) / Math.log(1000));
+  return (
+    parseFloat((bytes / Math.pow(1000, index)).toFixed(dm)) + " " + sizes[index]
+  );
+};
+
 
 module.exports = carWash;

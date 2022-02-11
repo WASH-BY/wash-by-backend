@@ -42,7 +42,7 @@ const UserSchema = new Mongoose.Schema(
     ],
     isWasher: { type: Boolean, default: false },
     carDetails: [{ type: Mongoose.Types.ObjectId, ref: "cars" }],
-    profileImage: { type: Object },
+    profileImage: { type: String },
   },
   { timestamps: Date.now }
 );
