@@ -2,13 +2,43 @@ const CarWash = require("../models/CarWashDetails");
 const Users = require("../models/UserModel");
 const CarSubscriptionModel = require("../models/CarSubscriptionDetails");
 const APIFeatures = require("../utils/APIFeatures");
+const fs = require("fs");
+// const { cloudinary } = require("../utils/Cloudinary");
+
+const cloudinary = require("cloudinary");
+cloudinary.config({
+  cloud_name: "nutrikee",
+  api_key: "576948847687923",
+  api_secret: "wm33buwerdl3bhz4kHIlzy67aME",
+});
+
+const uploadToCloudinary = async (locaFilePath) => {
+  // locaFilePath :
+  // path of image which was just uploaded to "uploads" folder
+  var mainFolderName = "main";
+  var filePathOnCloudinary = mainFolderName + "/" + locaFilePath;
+  // filePathOnCloudinary :
+  // path of image we want when it is uploded to cloudinary
+  const result = await cloudinary.uploader.upload(locaFilePath, {
+    public_id: filePathOnCloudinary,
+  });
+  console.log("result", result);
+  fs.unlinkSync(locaFilePath);
+
+  if (result) return { url: result.url };
+
+  if (!result) {
+    // Remove file from local uploads folder
+    fs.unlinkSync(locaFilePath);
+    return { message: "Fail" };
+  }
+};
 
 const carWash = {
   createCarWashManually: async (req, res) => {
     try {
       const subscription = new APIFeatures(
-        CarSubscriptionModel
-          .find()
+        CarSubscriptionModel.find()
           .select("-updatedAt -__v -createdAt")
           .populate(
             "carDetails carOwnerDetails",
@@ -26,7 +56,7 @@ const carWash = {
 
       const result = await Promise.allSettled([
         subscription.query,
-        CarSubscriptionModel.countDocuments(), //count number of subscription
+        subscription.length, //count number of subscription
       ]);
 
       const SubscriptionData =
@@ -34,10 +64,63 @@ const carWash = {
 
       const count = result[1].status === "fulfilled" ? result[1].value : [];
 
-      res.status(200).json({
-        success: true,
-        data: { SubscriptionData: SubscriptionData, count },
-      });
+      const Date = new Date();
+      const todaysDate =
+        Date.getFullYear() + "-" + (Date.getMonth() + 1) + "-" + Date.getDate();
+      console.log("todaysDate", todaysDate);
+      /*once we have the car wash data
+      we filter out the car washes for today
+      */
+      const todayWashes =
+        SubscriptionData &&
+        SubscriptionData._id &&
+        SubscriptionData.filter((data) =>
+          data.washingDates.includes(todaysDate)
+        );
+
+      /* once we have the filtered data for todays's date 
+      we have to assign a washer to each car wash 
+      Hence I call Users model to fetch all the washers available
+      */
+
+      const washers = await Users.find({ isWasher: true });
+
+      const carWashScheduleTimeArray = [
+        "09:00",
+        "09:30",
+        "10:00",
+        "10:30",
+        "11:00",
+        "11:30",
+        "12:00",
+        "12:30",
+        "13:00",
+        "14:00",
+        "14:30",
+        "15:00",
+        "15:30",
+        "16:00",
+        "16:30",
+        "17:00",
+        "17:30",
+        "18:00",
+        "18:30",
+      ];
+      //TODO:as you have the car washes for today and the washer's Data
+      /* create car wash by providing carDetails
+        carWashScheduledDate,
+        carWashStartTime,
+        carWashEndTime,
+        alongside create a copy for the washer 
+        through the API named createMyCarwashesToday
+        so that the user will have the copy of car washes  for today to track by him and the admin
+        make sure you set up time intervals for each car wash
+*/
+
+      // res.status(200).json({
+      //   success: true,
+      //   data: { SubscriptionData: SubscriptionData, count },
+      // });
     } catch (error) {
       return res.status(500).json({ success: false, message: error.message });
     }
@@ -98,7 +181,14 @@ const carWash = {
       //Here car wash will be updated by washer
       const getWasherDetails = await Users.find({ _id: req.user.id });
 
-      const { carImageBeforeWash } = req.body;
+      //Single File upload
+      // console.log("req.file.originalname", req.file.originalname);
+      // var locaFilePath = req.file.path;
+      // // console.log("file", file);
+      // var result = await uploadToCloudinary(locaFilePath)
+      // console.log("data1", result);
+
+      // console.log('result.secure_url', result.url)
 
       if (getWasherDetails[0].isWasher) {
         const washExists = await CarWash.find({ _id: req.params.id });
@@ -108,24 +198,29 @@ const carWash = {
             message: "No Car wash found with the provided id.",
           });
         } else {
-          /*here we update the car wash by uploading the car images
-           before wash along with who is washing the car*/
+          // Multiple File upload
+          let filesArray = [];
+          for await (const file of req.files) {
+            const result = await uploadToCloudinary(file.path);
+            filesArray.push(result.url);
+          }
+          /*here we update the var result = who is washing the car*/
 
           const washerUpdate = await CarWash.findByIdAndUpdate(
             req.params.id,
             {
               carwashedBy: req.user.id,
-              carImageBeforeWash,
+              carImageBeforeWash: filesArray,
             },
             { new: true, runValidators: true }
           );
+          console.log("washerUpdate", washerUpdate);
           return res.status(200).json({ success: true, data: washerUpdate });
         }
       } else {
-        return res.status(500).json({
-          success: false,
-          data: "Data can be updated only by a Washer",
-        });
+        return res
+          .status(500)
+          .json({ success: false, data: "Only washer can update the data" });
       }
     } catch (error) {
       return res.status(500).json({ error: error.message });
@@ -142,32 +237,41 @@ const carWash = {
       const CarDetails = await CarSubscriptionModel.find({
         _id: subscriptionId[0].subscriptionDetails,
       });
-      if (!doesWashExist)
+      if (!doesWashExist) {
         return res.status(500).json({
           success: false,
           message: "Washer with the provided id does not exist",
         });
-      const { carImageAfterWash, isCarWashCompleted } = req.body;
+      } else {
+        // const { carImageAfterWash, isCarWashCompleted } = req.body;
 
-      /* Here the car washer will complete the car wash 
+        let filesArray = [];
+        for await (const file of req.files) {
+          const result = await uploadToCloudinary(file.path);
+          filesArray.push(result.url);
+        }
+        console.log("filesArray", filesArray);
+        /* Here the car washer will complete the car wash 
         by uploading the car images after  the car wash
         and we will mark the car wash as completed
        */
-      const endCarWash = await CarWash.findByIdAndUpdate(
-        { _id: req.params.id },
-        {
-          carImageAfterWash,
-          isCarWashCompleted,
-          carwashedBy: req.user.id,
-        },
-        { new: true, runValidators: true }
-      );
+        console.log("req.params.id", req.params.id);
+        const endCarWash = await CarWash.findByIdAndUpdate(
+          req.params.id,
+          {
+            carwashedBy: req.user.id,
+            carImageAfterWash: filesArray,
+            isCarWashCompleted: true,
+          },
+          { new: true, runValidators: true }
+        );
 
-      return res.status(200).json({
-        success: true,
-        message: "You have successfully completed your Car Wash",
-        data: endCarWash,
-      });
+        return res.status(200).json({
+          success: true,
+          message: "You have successfully completed your Car Wash",
+          data: endCarWash,
+        });
+      }
     } catch (error) {
       return res.status(500).json({ error: error.message });
     }
