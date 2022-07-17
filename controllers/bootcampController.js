@@ -2,7 +2,7 @@ const Bootcamp = require("../models/BootcampModel");
 const AysncHandler = require("../middleware/AsyncHandler");
 const ErrorResponse = require("../utils/ErrorResponse");
 
-exports.getAllBootcamps = AysncHandler(async (req, res, next) => {
+exports.getAllBootcamps = AysncHandler(async (_req, res, _next) => {
   const bootcamps = await Bootcamp.find();
   res.status(200).json({
     success: true,
@@ -10,7 +10,7 @@ exports.getAllBootcamps = AysncHandler(async (req, res, next) => {
   });
 });
 
-exports.createBootcamp = AysncHandler(async (req, res, next) => {
+exports.createBootcamp = AysncHandler(async (req, res, _next) => {
   const bootcamps = await Bootcamp.create(req.body);
   res.status(201).json({
     success: true,
@@ -39,7 +39,7 @@ exports.deleteBootcamp = AysncHandler(async (req, res, next) => {
       new ErrorResponse(`Bootcamp with id ${req.params.id} not found`, 401)
     );
 
-  bootcamps = await Bootcamp.remove();
+  await Bootcamp.remove();
 
   res.status(200).json({ success: true, data: {} });
 });

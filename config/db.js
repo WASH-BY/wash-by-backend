@@ -6,8 +6,8 @@ const connDB = async () => {
   try {
     await mongoose.connect(CONNECTIONSTRING, {
       useCreateIndex: true,
-      useNewUrlParser: true,
-      useUnifiedTopology: true,
+      useNewUrlParser: true, //useNewUrlParser: true, you must specify a port in your connection string
+      useUnifiedTopology: true, //Set to true to opt in to using the MongoDB driver's new connection management engine
       useFindAndModify: false,
     });
     console.log("MongoDB connection Successful 🌟 ");

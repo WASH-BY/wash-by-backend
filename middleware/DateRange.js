@@ -11,7 +11,7 @@ const DateRange = (startDate, endDate, steps = 3) => {
     // Use UTC date to prevent problems with time zones and DST
     currentDate.setUTCDate(currentDate.getUTCDate() + steps);
   }
-  let splitDate = dateArray.map(
+  return dateArray.map(
     (data) =>
       data.getFullYear() +
       "-" +
@@ -21,7 +21,6 @@ const DateRange = (startDate, endDate, steps = 3) => {
       "-" +
       (data.getDate() < 10 ? "0" + data.getDate() : data.getDate())
   );
-  return splitDate;
 };
 
 module.exports = DateRange;

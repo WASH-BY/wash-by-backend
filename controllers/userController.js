@@ -4,7 +4,7 @@ const jwt = require("jsonwebtoken");
 const APIFeatures = require("../utils/APIFeatures");
 
 const userController = {
-  register: async (req, res, next) => {
+  register: async (req, res, _next) => {
     try {
       const { name, email, password } = req.body;
       if (!name || !email || !password)
@@ -35,7 +35,7 @@ const userController = {
     }
   },
 
-  login: async (req, res, next) => {
+  login: async (req, res, _next) => {
     try {
       const { email, password } = req.body;
       const EmailExist = await Users.findOne({ email });
@@ -61,7 +61,25 @@ const userController = {
     }
   },
 
-  logOut: async (req, res, next) => {
+  //login API call
+  refreshToken: async (req, res, _next) => {
+    try {
+      const refreshToken = req.cookies.refreshToken;
+      if (!refreshToken) return res.status(401).json({ message: "No token" });
+      const verified = jwt.verify(
+        refreshToken,
+        process.env.REFRESH_TOKEN_SECRET
+      );
+      const user = await Users.findById(verified.id);
+      if (!user) return res.status(400).json({ message: "Invalid token" });
+      const accessToken = createAccessToken({ id: user._id });
+      return res.status(200).json({ success: true, data: { accessToken } });
+    } catch (error) {
+      return res.status(500).json({ message: error.message });
+    }
+  },
+
+  logOut: async (_req, res, _next) => {
     try {
       res.clearCookie("refreshToken", { path: "/user/refresh_token" });
       res.status(200).json({ message: "SuccessFully Logged Out" });
@@ -89,7 +107,7 @@ const userController = {
     }
   },
 
-  getAllUsers: async (req, res, next) => {
+  getAllUsers: async (req, res, _next) => {
     try {
       const users = new APIFeatures(
         Users.find()
@@ -121,7 +139,7 @@ const userController = {
     }
   },
 
-  getUserById: async (req, res, next) => {
+  getUserById: async (req, res, _next) => {
     try {
       const userExist = await Users.findById({ _id: req.params.id })
         .select("-password -updatedAt -__v -createdAt")

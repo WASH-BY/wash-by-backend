@@ -46,7 +46,7 @@ const carModelController = {
       //Here I'm updating the User modal by passing the new car modal
       await Users.findByIdAndUpdate(
         { _id: req.user.id },
-        { carDetails:uniqueCars },
+        { carDetails: uniqueCars },
         { new: true, runValidators: true }
       );
 
@@ -58,7 +58,13 @@ const carModelController = {
 
   getCars: async (req, res) => {
     try {
-      const getCars = new APIFeatures(CarModel.find().populate('user','-password -__v -createdAt -updatedAt'), req.query)
+      const getCars = new APIFeatures(
+        CarModel.find().populate(
+          "user",
+          "-password -__v -createdAt -updatedAt"
+        ),
+        req.query
+      )
         .paginating()
         .sorting()
         .searching()
@@ -108,7 +114,7 @@ const carModelController = {
           .status(404)
           .json({ success: false, error: "Car does not exist" });
       }
-      const deletedCar = await CarModel.findByIdAndDelete(req.params.id);
+      await CarModel.findByIdAndDelete(req.params.id);
       return res.status(200).json({ success: true, data: [] });
     } catch (error) {
       return res.status(500).json({ success: false, error: error.message });
